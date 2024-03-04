@@ -1,0 +1,1 @@
+python3 -m fastchat.serve.model_worker --model-names Llama-2-7b-chat-hf --model-path meta_llama/Llama-2-7b-chat-hf --controller-address http://localhost:21001 --worker-address http://localhost:8080 --host 0.0.0.0 --port 8080  --num-gpus 8 --max-gpu-memory 4GiB &
