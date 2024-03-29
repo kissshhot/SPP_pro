@@ -26,8 +26,6 @@ lora_model.load_adapter(model_id = "/data1/dyf/hub/Mistral-7B-Instruct-v0.2_hist
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 # model = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2", device_map = 'auto' if torch.cuda.is_available() else None)
 SLEEP_RATE = 10 # sleep between calls
-
-
 def output_log_jsonl(log_file, all_logs):
     with open(log_file, "w") as f:
         for log in all_logs:
@@ -81,7 +79,7 @@ def _run_task(task_name, gpt, task, i, method, num_generation):
         model_inputs = encodeds.to(device)
         # model.to(device)
         with lora_model.disable_adapter():
-            generated_ids, agent_string = lora_model.generate(model_inputs, max_new_tokens=5000, pad_token_id = 32000)
+            generated_ids, agent_string, agent_ids = lora_model.generate(model_inputs, max_new_tokens=5000, pad_token_id = 32000)
         decoded = tokenizer.batch_decode(generated_ids)
         raw_output_batch = decoded
         # time.sleep(5)
@@ -111,8 +109,9 @@ def _run_task(task_name, gpt, task, i, method, num_generation):
                 # indices = (model_inputs[0] == 32000)
                 # model_inputs[0][indices] = 259
                 with lora_model.disable_adapter():
-                    generated_ids, agent_string = lora_model.generate(model_inputs, max_new_tokens=5000, pad_token_id = 32000)
+                    generated_ids, agent_string, agent_ids = lora_model.generate(model_inputs, max_new_tokens=5000, pad_token_id = 32000)
                 decoded = tokenizer.batch_decode(generated_ids)
+                print(decoded[0][-20:])
                 raw_output_batch = decoded
                 # time.sleep(5) #似乎加上这个效果会好很多
             else:
@@ -146,7 +145,7 @@ def _run_task(task_name, gpt, task, i, method, num_generation):
                     # indices = (model_inputs[0] == 32000)
                     # model_inputs[0][indices] = 259
                     with lora_model.disable_adapter():
-                        generated_ids, agent_string = lora_model.generate(model_inputs, max_new_tokens=5000, pad_token_id = 32000)
+                        generated_ids, agent_string, agent_ids = lora_model.generate(model_inputs, max_new_tokens=5000, pad_token_id = 32000)
                     #time.sleep(5)
                     # decoded = tokenizer.batch_decode(generated_ids)
                     # raw_output_batch = decoded
@@ -158,7 +157,13 @@ def _run_task(task_name, gpt, task, i, method, num_generation):
                     if s in [0,1,2]:
                         model_inputs = torch.load('tensor.pt')
                         lora_model.set_adapter('historyExpert')
-                        generated_ids, agent_string = lora_model.generate(model_inputs, max_new_tokens = 5000, pad_token_id = 32000)
+                        generated_ids, agent_string, agent_ids = lora_model.generate(model_inputs, max_new_tokens = 5000, pad_token_id = 32000)
+                        model_inputs = torch.load('tensor.pt')
+                        if type(agent_ids) is not str:
+                            test = model_inputs[0][:-agent_ids.size(0)]
+                            test = test.unsqueeze(0)
+                            torch.save(test, 'tensor.pt')
+                            agent_string = "Assistant"
                         #lora_model.set_adapter()
                         #time.sleep(5)
                         # decoded = tokenizer.batch_decode(generated_ids)
@@ -166,7 +171,13 @@ def _run_task(task_name, gpt, task, i, method, num_generation):
                     elif s in [6,7,8]:
                         model_inputs = torch.load('tensor.pt')
                         lora_model.set_adapter('storyWriter')
-                        generated_ids, agent_string = lora_model.generate(model_inputs, max_new_tokens = 5000, pad_token_id = 32000)
+                        generated_ids, agent_string, agent_ids = lora_model.generate(model_inputs, max_new_tokens = 5000, pad_token_id = 32000)
+                        model_inputs = torch.load('tensor.pt')
+                        if type(agent_ids) is not str:
+                            test = model_inputs[0][:-agent_ids.size(0)]
+                            test = test.unsqueeze(0)
+                            torch.save(test, 'tensor.pt')
+                            agent_string = "Assistant"
                         #lora_model.set_adapter()
                         #time.sleep(5)
                         # decoded = tokenizer.batch_decode(generated_ids)
@@ -174,7 +185,13 @@ def _run_task(task_name, gpt, task, i, method, num_generation):
                     else:
                         model_inputs = torch.load('tensor.pt')
                         lora_model.set_adapter('musicExpert')
-                        generated_ids, agent_string = lora_model.generate(model_inputs, max_new_tokens = 5000, pad_token_id = 32000)
+                        generated_ids, agent_string, agent_ids = lora_model.generate(model_inputs, max_new_tokens = 5000, pad_token_id = 32000)
+                        model_inputs = torch.load('tensor.pt')
+                        if type(agent_ids) is not str:
+                            test = model_inputs[0][:-agent_ids.size(0)]
+                            test = test.unsqueeze(0)
+                            torch.save(test, 'tensor.pt')
+                            agent_string = "Assistant"
                         #lora_model.set_adapter()
                         #time.sleep(5)
                         # decoded = tokenizer.batch_decode(generated_ids)
@@ -331,7 +348,7 @@ def parse_args():
     args.add_argument('--task', type=str, default='trivia_creative_writing', choices=['trivia_creative_writing', 'logic_grid_puzzle', 'codenames_collaborative'])
     args.add_argument('--task_data_file', type=str, default='trivia_creative_writing_100_n_5.jsonl')
     args.add_argument('--task_start_index', type=int, default=96)#52 54 72 91 96
-    args.add_argument('--task_end_index', type=int, default=97)
+    args.add_argument('--task_end_index', type=int, default=100)
     args.add_argument('--num_generation', type=int, default=1)
     args.add_argument('--additional_output_note', type=str, default="")
     args.add_argument('--temperature', type=float, default=0.0)
