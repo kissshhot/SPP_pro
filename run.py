@@ -23,8 +23,6 @@ lora_model = PeftModel.from_pretrained(model, model_id = lora_model_name_or_path
 #### 读取另外两个adapter
 lora_model.load_adapter(model_id = "/data1/dyf/hub/Mistral-7B-Instruct-v0.2_musicExpert_lora/",adapter_name = "musicExpert")
 lora_model.load_adapter(model_id = "/data1/dyf/hub/Mistral-7B-Instruct-v0.2_historyExpert_lora/", adapter_name = "historyExpert")
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
-# model = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2", device_map = 'auto' if torch.cuda.is_available() else None)
 SLEEP_RATE = 10 # sleep between calls
 def output_log_jsonl(log_file, all_logs):
     with open(log_file, "w") as f:
@@ -42,38 +40,12 @@ def _post_process_raw_response(task, raw_output_batch, method):
 
 def _run_task(task_name, gpt, task, i, method, num_generation):
     if task_name in ['trivia_creative_writing', 'logic_grid_puzzle']:
-        #os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5"
-        # model = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2", device_map = 'auto' if torch.cuda.is_available() else None)
-        # tokenizer = AutoTokenizer.from_pretrained("/data1/dyf/hub/Mistral-7B-Instruct-v0.2_historyExpert_lora_merged/",use_fast='store_true')
-        # model.resize_token_embeddings(len(tokenizer))
-        # #使用peftmodel加载lora
-        # from peft import PeftModel
-        # lora_model_name_or_path = "/data1/dyf/hub/Mistral-7B-Instruct-v0.2_storyWriter_lora/"
-        # #### 初始化PeftModel, 并且load第一个adapter
-        # lora_model = PeftModel.from_pretrained(model, model_id = lora_model_name_or_path, adapter_name = "storyWriter")
-        # #### 读取另外两个adapter
-        # lora_model.load_adapter(model_id = "/data1/dyf/hub/Mistral-7B-Instruct-v0.2_musicExpert_lora/",adapter_name = "musicExpert")
-        # lora_model.load_adapter(model_id = "/data1/dyf/hub/Mistral-7B-Instruct-v0.2_historyExpert_lora/", adapter_name = "historyExpert")
-        # # get prompt
         prompt = task.get_input_prompt(i, method=method)
         system_message = ""
-        # get raw response
-        #这里改写为通过加载本地模型
-        # 第一次generate必定是基础模型
-        #os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
-        #os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-        # overload system message
         messages = [
             {"role":"user","content":prompt}
         ]
-        #使用基础模型
-        #os.environ["TORCH_USE_CUDA_DSA"] = "1"
         device = "cuda" # the device to load the model onto
-        # device_map = {'cpu': 'cpu', 'cuda:0': 'cuda:0', 'cuda:1': 'cuda:1', 'cuda:2': 'cuda:2', 'cuda:3': 'cuda:3'}
-        # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
-        #model = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2", device_map = 'auto' if torch.cuda.is_available() else None)
-        # tokenizer = AutoTokenizer.from_pretrained("/data1/dyf/hub/Mistral-7B-Instruct-v0.2_historyExpert_lora_merged/",use_fast='store_true')
-        # model.resize_token_embeddings(len(tokenizer))
         encodeds = tokenizer.apply_chat_template(messages, return_tensors="pt")
 
         model_inputs = encodeds.to(device)
@@ -82,16 +54,6 @@ def _run_task(task_name, gpt, task, i, method, num_generation):
             generated_ids, agent_string, agent_ids = lora_model.generate(model_inputs, max_new_tokens=5000, pad_token_id = 32000)
         decoded = tokenizer.batch_decode(generated_ids)
         raw_output_batch = decoded
-        # time.sleep(5)
-
-        # #使用peftmodel加载lora
-        # lora_model_name_or_path = "/data1/dyf/hub/Mistral-7B-Instruct-v0.2_storyWriter_lora/"
-        # #### 初始化PeftModel, 并且load第一个adapter
-        # lora_model = PeftModel.from_pretrained(model, model_id = lora_model_name_or_path, adapter_name = "storyWriter")
-        # #### 读取另外两个adapter
-        # lora_model.load_adapter(model_id = "/data1/dyf/hub/Mistral-7B-Instruct-v0.2_musicExpert_lora/",adapter_name = "musicExpert")
-        # lora_model.load_adapter(model_id = "/data1/dyf/hub/Mistral-7B-Instruct-v0.2_historyExpert_lora/", adapter_name = "historyExpert")
-        # return decoded, agent_string
         if raw_output_batch == []: # handle exception
             return {}
         while True:
@@ -138,12 +100,7 @@ def _run_task(task_name, gpt, task, i, method, num_generation):
                     os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
                     #os.environ["TORCH_USE_CUDA_DSA"] = "1"
                     device = "cuda" # the device to load the model onto
-                    # device_map = {'cpu': 'cpu', 'cuda:0': 'cuda:0', 'cuda:1': 'cuda:1', 'cuda:2': 'cuda:2', 'cuda:3': 'cuda:3'}
-                    # model.to(device)
                     model_inputs = torch.load('tensor.pt')
-                    #将所有的<pad>替换为空格
-                    # indices = (model_inputs[0] == 32000)
-                    # model_inputs[0][indices] = 259
                     with lora_model.disable_adapter():
                         generated_ids, agent_string, agent_ids = lora_model.generate(model_inputs, max_new_tokens=5000, pad_token_id = 32000)
                     #time.sleep(5)
@@ -159,6 +116,7 @@ def _run_task(task_name, gpt, task, i, method, num_generation):
                         lora_model.set_adapter('historyExpert')
                         generated_ids, agent_string, agent_ids = lora_model.generate(model_inputs, max_new_tokens = 5000, pad_token_id = 32000)
                         model_inputs = torch.load('tensor.pt')
+                        # 将下一个角色前的ids截取，用以让基础模型生成下一个角色
                         if type(agent_ids) is not str:
                             test = model_inputs[0][:-agent_ids.size(0)]
                             test = test.unsqueeze(0)
